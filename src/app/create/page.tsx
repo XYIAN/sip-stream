@@ -82,7 +82,8 @@ export default function CreateGamePage() {
           onClick={createGame}
           loading={loading}
           disabled={!gameType || players.length < 2}
-          className="w-full p-button-lg"
+          className="w-full p-button-lg bg-orange-600 border-none hover:bg-orange-700"
+          icon="pi pi-plus"
         />
       </div>
     </main>

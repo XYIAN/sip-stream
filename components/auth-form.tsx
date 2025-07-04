@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from 'primereact/button';
@@ -28,6 +28,7 @@ export function AuthForm() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<AuthFormData>({
     resolver: zodResolver(authSchema),
@@ -88,13 +89,20 @@ export function AuthForm() {
           <label htmlFor="password" className="mb-2 font-medium">
             Password
           </label>
-          <Password
-            id="password"
-            {...register('password')}
-            className={errors.password ? 'p-invalid' : ''}
-            placeholder="Enter your password"
-            feedback={false}
-            toggleMask
+          <Controller
+            name="password"
+            control={control}
+            render={({ field }) => (
+              <Password
+                id="password"
+                value={field.value}
+                onChange={field.onChange}
+                className={errors.password ? 'p-invalid' : ''}
+                placeholder="Enter your password"
+                feedback={false}
+                toggleMask
+              />
+            )}
           />
           {errors.password && <small className="p-error">{errors.password.message}</small>}
         </div>
