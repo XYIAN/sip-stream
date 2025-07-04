@@ -12,7 +12,7 @@ SipStream is a playful, mobile-first web app for real-time, multi-user drinking 
 
 ## Tech Stack
 
-- Next.js 15.3.3+
+- Next.js 15.3.5
 - TypeScript
 - Tailwind CSS
 - PrimeReact, PrimeFlex, PrimeIcons
@@ -39,6 +39,31 @@ SipStream is a playful, mobile-first web app for real-time, multi-user drinking 
    ```sh
    npm run dev
    ```
+
+## Deployment
+
+### Vercel (Recommended)
+
+1. Push your code to GitHub
+2. Connect your repository to Vercel
+3. Add environment variables in Vercel dashboard
+4. Deploy automatically on push
+
+### Netlify
+
+1. Push your code to GitHub
+2. Connect your repository to Netlify
+3. Set build command: `npm run build`
+4. Set publish directory: `.next`
+5. Add environment variables in Netlify dashboard
+6. Deploy
+
+### Environment Variables
+
+Make sure to set these in your deployment platform:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
 ## Scripts
 
