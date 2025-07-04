@@ -1,12 +1,132 @@
-"use client";
+'use client';
+
+import { useParams } from 'next/navigation';
+import { useState } from 'react';
+import { DrinkCounter } from '../../../../components/drink-counter';
+import { SpeedDialMenu } from '../../../../components/speed-dial-menu';
+import { DrawCardModal } from '../../../../components/draw-card-modal';
+import { useGame } from '../../../../hooks/useGame';
+import { Button } from 'primereact/button';
+import { ProgressSpinner } from 'primereact/progressspinner';
+import { Message } from 'primereact/message';
+import Link from 'next/link';
 
 export default function GameDashboardPage() {
+  const params = useParams();
+  const gameId = params.gameid as string;
+  const [showCardModal, setShowCardModal] = useState(false);
+  const [cardText, setCardText] = useState('');
+
+  const { game, isLoading, error, decrementDrinks, nextTurn, updateGame, addHistoryEntry } =
+    useGame(gameId);
+
+  if (isLoading) {
+    return (
+      <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-b from-orange-900 to-red-700 text-white">
+        <ProgressSpinner />
+        <p className="mt-4">Loading game...</p>
+      </main>
+    );
+  }
+
+  if (error || !game) {
+    return (
+      <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-b from-orange-900 to-red-700 text-white">
+        <Message severity="error" text={error || 'Game not found'} className="w-full max-w-md" />
+        <Link href="/" passHref legacyBehavior>
+          <Button label="Go Home" className="mt-4" />
+        </Link>
+      </main>
+    );
+  }
+
+  async function handleDrawCard() {
+    if (!game) return;
+
+    const cards = [
+      '2 drinks to Sarah!',
+      'Everyone drinks!',
+      'Make a rule',
+      'Waterfall - everyone drinks until the person to your right stops',
+      'Pick someone to drink',
+      'You drink!',
+    ];
+    const randomCard = cards[Math.floor(Math.random() * cards.length)];
+    setCardText(randomCard);
+    setShowCardModal(true);
+    await addHistoryEntry('card_drawn', game.players[game.current_player_index], {
+      card: randomCard,
+    });
+  }
+
+  async function handleAddDrinks(count: number) {
+    if (!game) return;
+
+    await updateGame({ current_drinks: game.current_drinks + count });
+    await addHistoryEntry('drinks_added', 'Game Master', {
+      drinks_added: count,
+      new_total: game.current_drinks + count,
+    });
+  }
+
+  const currentPlayer = game.players[game.current_player_index];
+
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-b from-orange-900 to-red-700 text-white">
-      <h1 className="text-3xl font-bold mb-6">Game Dashboard</h1>
-      <div className="w-full max-w-md bg-orange-800 rounded-lg p-6 space-y-4">
-        <p>[DrinkCounter, SpeedDialMenu, and real-time sync coming soon]</p>
+      <div className="absolute top-4 left-4">
+        <Link href="/" passHref legacyBehavior>
+          <Button icon="pi pi-arrow-left" className="p-button-text p-button-rounded" />
+        </Link>
       </div>
+
+      <div className="absolute top-4 right-4">
+        <Link href={`/${gameId}/history`} passHref legacyBehavior>
+          <Button icon="pi pi-history" className="p-button-text p-button-rounded" />
+        </Link>
+      </div>
+
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold mb-2">
+          {game.game_type.replace('-', ' ').toUpperCase()}
+        </h1>
+        <p className="text-lg text-orange-200">Current Player: {currentPlayer}</p>
+      </div>
+
+      <DrinkCounter
+        drinks={game.current_drinks}
+        onDecrement={decrementDrinks}
+        disabled={isLoading}
+      />
+
+      <div className="mt-8 text-center">
+        <h3 className="text-lg font-semibold mb-2">Players</h3>
+        <div className="flex flex-wrap justify-center gap-2">
+          {game.players.map((player, index) => (
+            <div
+              key={player}
+              className={`px-3 py-1 rounded-full text-sm ${
+                index === game.current_player_index
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-orange-800 text-orange-200'
+              }`}
+            >
+              {player}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <SpeedDialMenu
+        onNextTurn={nextTurn}
+        onDrawCard={handleDrawCard}
+        onAddDrinks={handleAddDrinks}
+      />
+
+      <DrawCardModal
+        visible={showCardModal}
+        onHide={() => setShowCardModal(false)}
+        cardText={cardText}
+      />
     </main>
   );
 }
