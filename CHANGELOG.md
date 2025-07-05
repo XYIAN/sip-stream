@@ -4,20 +4,54 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Complete Friends System**: Full social networking with friend requests, search, and management
+- **Real-time Notifications**: Live notifications for friend requests, game invitations, and game updates
+- **User Profiles**: User status tracking (online, offline, in_game, away) with real-time updates
+- **Game Invitations**: Send and receive game invitations with accept/decline functionality
+- **Friends List Component**: Search, add, remove friends with online status indicators
+- **Notifications Panel**: Real-time notification center with action buttons for friend requests and game invites
+- **Game Tips System**: Dynamic tips display at the bottom of games with rotating game-specific advice
+- **Enhanced Game Dashboard**: Added friends and notifications buttons to game interface
+- **useFriends Hook**: Comprehensive hook for managing friends, profiles, and notifications
+- **Database Triggers**: Automatic notification creation for friend requests and game invitations
+- **Real-time Status Updates**: Users' online/game status updates in real-time
+
+### Database Schema
+
+- **user_profiles table**: User information, status, and game tracking
+- **friends table**: Friend relationships with pending/accepted status
+- **notifications table**: Real-time notifications with action requirements
+- **game_invitations table**: Game invitation system with expiration
+- **Database Triggers**: Automatic notification and status management
+- **Row Level Security**: Proper security policies for all new tables
+- **Real-time Subscriptions**: All new tables enabled for real-time updates
+
+### Enhanced Multiplayer Features
+
+- **Live Friend Status**: See when friends are online, in game, or away
+- **Game Invitation System**: Invite friends to join your games
+- **Friend Request Management**: Accept/decline friend requests with notifications
+- **Real-time Game Updates**: All players see game changes instantly
+- **Interactive Notifications**: Click-to-action notifications for friend requests and game invites
+- **Game Tips**: Contextual tips for each game type that rotate during gameplay
+
+### UI/UX Improvements
+
+- **Social Navigation**: Friends and notifications buttons in game dashboard
+- **Status Indicators**: Visual indicators for friend online status and game participation
+- **Notification Badges**: Unread notification counts
+- **Game Tips Display**: Rotating tips at bottom of game screen
+- **Mobile-First Design**: All new components optimized for mobile devices
+- **Smooth Animations**: Enhanced transitions and interactions
+
 ### Fixed
 
 - **Database Schema Issues**: Fixed game creation by aligning code with actual database schema
 - **Game Type Validation**: Updated game types to match database constraints (`kings-cup`, `never-have-i-ever`, `custom-deck`)
 - **Route Navigation**: Fixed redirect path from `/game/${id}` to `/${id}/dashboard`
 - **Build Errors**: Resolved Tailwind CSS errors and removed unused code
-
-### Added
-
-- **Glossy UI Theme**: Implemented custom glossy styling with smooth animations
-- **Parallax Background**: Added `bg-1.png` as global background with parallax effect
-- **Icon Integration**: Added `icon-1.png` throughout the app for consistent branding
-- **Mobile-First Design**: Improved responsive design and button styling
-- **Custom 404 Page**: Created themed error page matching app design
 
 ### Changed
 

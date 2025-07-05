@@ -5,10 +5,14 @@ import { useState } from 'react';
 import { DrinkCounter } from '../../../components/drink-counter';
 import { SpeedDialMenu } from '../../../components/speed-dial-menu';
 import { DrawCardModal } from '../../../components/draw-card-modal';
+import { FriendsList } from '../../../components/friends-list';
+import { NotificationsPanel } from '../../../components/notifications-panel';
+import { GameTips } from '../../../components/game-tips';
 import { useGame } from '../../../hooks/useGame';
 import { Button } from 'primereact/button';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { Message } from 'primereact/message';
+
 import Link from 'next/link';
 
 export default function GameDashboardPage() {
@@ -16,6 +20,8 @@ export default function GameDashboardPage() {
   const gameId = params.gameid as string;
   const [showCardModal, setShowCardModal] = useState(false);
   const [cardText, setCardText] = useState('');
+  const [showFriends, setShowFriends] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const { game, isLoading, error, decrementDrinks, nextTurn, updateGame, addHistoryEntry } =
     useGame(gameId);
@@ -73,31 +79,49 @@ export default function GameDashboardPage() {
 
   return (
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-b from-orange-900 to-red-700 text-white">
-      <div className="absolute top-4 left-4">
+      {/* Header with navigation and social buttons */}
+      <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
         <Link href="/" passHref legacyBehavior>
           <Button icon="pi pi-arrow-left" className="p-button-text p-button-rounded" />
         </Link>
+
+        <div className="flex items-center gap-2">
+          <Button
+            icon="pi pi-users"
+            className="p-button-text p-button-rounded"
+            onClick={() => setShowFriends(true)}
+            tooltip="Friends"
+          />
+          <Button
+            icon="pi pi-bell"
+            className="p-button-text p-button-rounded relative"
+            onClick={() => setShowNotifications(true)}
+            tooltip="Notifications"
+          >
+            {/* Notification badge would go here */}
+          </Button>
+          <Link href={`/${gameId}/history`} passHref legacyBehavior>
+            <Button icon="pi pi-history" className="p-button-text p-button-rounded" />
+          </Link>
+        </div>
       </div>
 
-      <div className="absolute top-4 right-4">
-        <Link href={`/${gameId}/history`} passHref legacyBehavior>
-          <Button icon="pi pi-history" className="p-button-text p-button-rounded" />
-        </Link>
-      </div>
-
-      <div className="text-center mb-8">
+      {/* Game Title and Current Player */}
+      <div className="text-center mb-8 mt-16">
         <h1 className="text-3xl font-bold mb-2">
           {game.game_type.replace('-', ' ').toUpperCase()}
         </h1>
         <p className="text-lg text-orange-200">Current Player: {currentPlayer}</p>
       </div>
 
+      {/* Drink Counter */}
       <DrinkCounter
         drinks={game.current_drinks}
         onDecrement={decrementDrinks}
         disabled={isLoading}
       />
 
+      {/* Players List */}
       <div className="mt-8 text-center">
         <h3 className="text-lg font-semibold mb-2">Players</h3>
         <div className="flex flex-wrap justify-center gap-2">
@@ -116,17 +140,26 @@ export default function GameDashboardPage() {
         </div>
       </div>
 
+      {/* Game Actions */}
       <SpeedDialMenu
         onNextTurn={nextTurn}
         onDrawCard={handleDrawCard}
         onAddDrinks={handleAddDrinks}
       />
 
+      {/* Modals */}
       <DrawCardModal
         visible={showCardModal}
         onHide={() => setShowCardModal(false)}
         cardText={cardText}
       />
+
+      <FriendsList visible={showFriends} onHide={() => setShowFriends(false)} />
+
+      <NotificationsPanel visible={showNotifications} onHide={() => setShowNotifications(false)} />
+
+      {/* Game Tips */}
+      <GameTips gameType={game.game_type} />
     </main>
   );
 }
