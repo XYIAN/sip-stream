@@ -2,10 +2,10 @@
 
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
-import { DrinkCounter } from '../../../../components/drink-counter';
-import { SpeedDialMenu } from '../../../../components/speed-dial-menu';
-import { DrawCardModal } from '../../../../components/draw-card-modal';
-import { useGame } from '../../../../hooks/useGame';
+import { DrinkCounter } from '../../../components/drink-counter';
+import { SpeedDialMenu } from '../../../components/speed-dial-menu';
+import { DrawCardModal } from '../../../components/draw-card-modal';
+import { useGame } from '../../../hooks/useGame';
 import { Button } from 'primereact/button';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { Message } from 'primereact/message';
