@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS game_invitations (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Create games table
+-- Create games table (if it doesn't exist)
 CREATE TABLE IF NOT EXISTS games (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS games (
   created_by UUID REFERENCES auth.users(id) NOT NULL
 );
 
--- Create game_history table
+-- Create game_history table (if it doesn't exist)
 CREATE TABLE IF NOT EXISTS game_history (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -132,15 +132,59 @@ CREATE POLICY "Games can be updated by authenticated users" ON games FOR UPDATE 
 CREATE POLICY "History is viewable by everyone" ON game_history FOR SELECT USING (true);
 CREATE POLICY "History can be created by authenticated users" ON game_history FOR INSERT WITH CHECK (auth.role() = 'authenticated');
 
--- Enable realtime for all tables
-ALTER PUBLICATION supabase_realtime ADD TABLE user_profiles;
-ALTER PUBLICATION supabase_realtime ADD TABLE friends;
-ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
-ALTER PUBLICATION supabase_realtime ADD TABLE game_invitations;
-ALTER PUBLICATION supabase_realtime ADD TABLE games;
-ALTER PUBLICATION supabase_realtime ADD TABLE game_history;
+-- Enable realtime for all tables (only if not already enabled)
+DO $$
+BEGIN
+    -- Check if user_profiles is already in realtime publication
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'user_profiles'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE user_profiles;
+    END IF;
+    
+    -- Check if friends is already in realtime publication
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'friends'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE friends;
+    END IF;
+    
+    -- Check if notifications is already in realtime publication
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'notifications'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE notifications;
+    END IF;
+    
+    -- Check if game_invitations is already in realtime publication
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'game_invitations'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE game_invitations;
+    END IF;
+    
+    -- Check if games is already in realtime publication
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'games'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE games;
+    END IF;
+    
+    -- Check if game_history is already in realtime publication
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND tablename = 'game_history'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE game_history;
+    END IF;
+END $$;
 
--- Create indexes for better performance
+-- Create indexes for better performance (only if they don't exist)
 CREATE INDEX IF NOT EXISTS idx_user_profiles_username ON user_profiles(username);
 CREATE INDEX IF NOT EXISTS idx_user_profiles_status ON user_profiles(status);
 CREATE INDEX IF NOT EXISTS idx_friends_user_id ON friends(user_id);
@@ -183,7 +227,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger for game status updates
+-- Create trigger for game status updates (drop if exists first)
 DROP TRIGGER IF EXISTS trigger_update_user_game_status ON games;
 CREATE TRIGGER trigger_update_user_game_status
   AFTER INSERT OR UPDATE ON games
@@ -220,7 +264,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger for friend requests
+-- Create trigger for friend requests (drop if exists first)
 DROP TRIGGER IF EXISTS trigger_handle_friend_request ON friends;
 CREATE TRIGGER trigger_handle_friend_request
   AFTER INSERT OR UPDATE ON friends
@@ -257,7 +301,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger for game invitations
+-- Create trigger for game invitations (drop if exists first)
 DROP TRIGGER IF EXISTS trigger_handle_game_invitation ON game_invitations;
 CREATE TRIGGER trigger_handle_game_invitation
   AFTER INSERT OR UPDATE ON game_invitations
