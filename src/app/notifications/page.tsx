@@ -27,7 +27,7 @@ export default function NotificationsPage() {
               <p className="text-orange-200">Stay updated with your game activities</p>
             </div>
           </div>
-          <Link href="/" passHref legacyBehavior>
+          <Link href="/">
             <Button icon="pi pi-arrow-left" className="p-button-outlined" tooltip="Back to Home" />
           </Link>
         </div>

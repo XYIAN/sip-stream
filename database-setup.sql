@@ -1,7 +1,19 @@
 -- SipStream Database Setup for Supabase
 -- Run this in your Supabase SQL Editor
 
--- Create user_profiles table
+-- Create games table first (no dependencies)
+CREATE TABLE IF NOT EXISTS games (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  game_type TEXT NOT NULL CHECK (game_type IN ('kings-cup', 'never-have-i-ever', 'custom-deck')),
+  players TEXT[] NOT NULL,
+  current_drinks INTEGER DEFAULT 0 NOT NULL,
+  current_player_index INTEGER DEFAULT 0 NOT NULL,
+  is_active BOOLEAN DEFAULT true NOT NULL,
+  created_by UUID REFERENCES auth.users(id) NOT NULL
+);
+
+-- Create user_profiles table (now can reference games)
 CREATE TABLE IF NOT EXISTS user_profiles (
   id UUID REFERENCES auth.users(id) PRIMARY KEY,
   username TEXT UNIQUE NOT NULL,
@@ -49,19 +61,7 @@ CREATE TABLE IF NOT EXISTS game_invitations (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Create games table (if it doesn't exist)
-CREATE TABLE IF NOT EXISTS games (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-  game_type TEXT NOT NULL CHECK (game_type IN ('kings-cup', 'never-have-i-ever', 'custom-deck')),
-  players TEXT[] NOT NULL,
-  current_drinks INTEGER DEFAULT 0 NOT NULL,
-  current_player_index INTEGER DEFAULT 0 NOT NULL,
-  is_active BOOLEAN DEFAULT true NOT NULL,
-  created_by UUID REFERENCES auth.users(id) NOT NULL
-);
-
--- Create game_history table (if it doesn't exist)
+-- Create game_history table
 CREATE TABLE IF NOT EXISTS game_history (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -199,38 +199,46 @@ CREATE INDEX IF NOT EXISTS idx_games_is_active ON games(is_active);
 CREATE INDEX IF NOT EXISTS idx_game_history_game_id ON game_history(game_id);
 CREATE INDEX IF NOT EXISTS idx_game_history_created_at ON game_history(created_at DESC);
 
--- Grant necessary permissions
-GRANT ALL ON user_profiles TO authenticated;
-GRANT ALL ON friends TO authenticated;
-GRANT ALL ON notifications TO authenticated;
-GRANT ALL ON game_invitations TO authenticated;
-GRANT ALL ON games TO authenticated;
-GRANT ALL ON game_history TO authenticated;
-GRANT USAGE ON SCHEMA public TO authenticated;
-
--- Create function to update user status when joining/leaving games
+-- Create function to update user game status
 CREATE OR REPLACE FUNCTION update_user_game_status()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF TG_OP = 'INSERT' THEN
-    -- User joined a game
-    UPDATE user_profiles 
-    SET status = 'in_game', current_game_id = NEW.id, updated_at = NOW()
-    WHERE id = NEW.created_by;
-  ELSIF TG_OP = 'UPDATE' AND NEW.is_active = false AND OLD.is_active = true THEN
-    -- Game ended, update all players
-    UPDATE user_profiles 
-    SET status = 'online', current_game_id = NULL, updated_at = NOW()
-    WHERE current_game_id = NEW.id;
-  END IF;
-  RETURN NEW;
+    -- Update user status when they join/leave a game
+    IF TG_OP = 'INSERT' THEN
+        -- User joined a game
+        UPDATE user_profiles 
+        SET status = 'in_game', current_game_id = NEW.id, updated_at = NOW()
+        WHERE id = ANY(SELECT unnest(NEW.players)::uuid);
+    ELSIF TG_OP = 'UPDATE' THEN
+        -- Check if user left the game
+        IF OLD.players IS DISTINCT FROM NEW.players THEN
+            -- Remove 'in_game' status from users no longer in the game
+            UPDATE user_profiles 
+            SET status = 'online', current_game_id = NULL, updated_at = NOW()
+            WHERE id = ANY(SELECT unnest(OLD.players)::uuid)
+            AND id NOT IN (SELECT unnest(NEW.players)::uuid);
+            
+            -- Set 'in_game' status for new players
+            UPDATE user_profiles 
+            SET status = 'in_game', current_game_id = NEW.id, updated_at = NOW()
+            WHERE id = ANY(SELECT unnest(NEW.players)::uuid)
+            AND id NOT IN (SELECT unnest(OLD.players)::uuid);
+        END IF;
+    ELSIF TG_OP = 'DELETE' THEN
+        -- Game ended, set all players to online
+        UPDATE user_profiles 
+        SET status = 'online', current_game_id = NULL, updated_at = NOW()
+        WHERE current_game_id = OLD.id;
+    END IF;
+    
+    RETURN COALESCE(NEW, OLD);
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger for game status updates (drop if exists first)
+-- Create trigger for user game status updates
 DROP TRIGGER IF EXISTS trigger_update_user_game_status ON games;
 CREATE TRIGGER trigger_update_user_game_status
-  AFTER INSERT OR UPDATE ON games
+  AFTER INSERT OR UPDATE OR DELETE ON games
   FOR EACH ROW
   EXECUTE FUNCTION update_user_game_status();
 
@@ -238,33 +246,62 @@ CREATE TRIGGER trigger_update_user_game_status
 CREATE OR REPLACE FUNCTION handle_friend_request()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF TG_OP = 'INSERT' AND NEW.status = 'pending' THEN
-    -- Create notification for friend request
-    INSERT INTO notifications (user_id, type, title, message, data, requires_action)
-    VALUES (
-      NEW.friend_id,
-      'friend_request',
-      'New Friend Request',
-      'You have a new friend request',
-      jsonb_build_object('friend_id', NEW.user_id, 'request_id', NEW.id),
-      true
-    );
-  ELSIF TG_OP = 'UPDATE' AND NEW.status = 'accepted' AND OLD.status = 'pending' THEN
-    -- Friend request accepted, notify the requester
-    INSERT INTO notifications (user_id, type, title, message, data)
-    VALUES (
-      NEW.user_id,
-      'friend_request',
-      'Friend Request Accepted',
-      'Your friend request was accepted!',
-      jsonb_build_object('friend_id', NEW.friend_id)
-    );
-  END IF;
-  RETURN NEW;
+    -- Create notification when friend request is sent
+    IF TG_OP = 'INSERT' AND NEW.status = 'pending' THEN
+        INSERT INTO notifications (
+            user_id,
+            type,
+            title,
+            message,
+            data,
+            requires_action
+        ) VALUES (
+            NEW.friend_id,
+            'friend_request',
+            'New Friend Request',
+            'You have a new friend request',
+            jsonb_build_object(
+                'request_id', NEW.id,
+                'from_user_id', NEW.user_id,
+                'from_username', (SELECT username FROM user_profiles WHERE id = NEW.user_id)
+            ),
+            true
+        );
+    END IF;
+    
+    -- Handle friend request acceptance
+    IF TG_OP = 'UPDATE' AND OLD.status = 'pending' AND NEW.status = 'accepted' THEN
+        -- Create notification for the requester
+        INSERT INTO notifications (
+            user_id,
+            type,
+            title,
+            message,
+            data
+        ) VALUES (
+            NEW.user_id,
+            'friend_request',
+            'Friend Request Accepted',
+            'Your friend request was accepted!',
+            jsonb_build_object(
+                'friend_id', NEW.friend_id,
+                'friend_username', (SELECT username FROM user_profiles WHERE id = NEW.friend_id)
+            )
+        );
+        
+        -- Mark the original notification as read
+        UPDATE notifications 
+        SET is_read = true 
+        WHERE user_id = NEW.friend_id 
+        AND type = 'friend_request' 
+        AND data->>'request_id' = NEW.id::text;
+    END IF;
+    
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger for friend requests (drop if exists first)
+-- Create trigger for friend request handling
 DROP TRIGGER IF EXISTS trigger_handle_friend_request ON friends;
 CREATE TRIGGER trigger_handle_friend_request
   AFTER INSERT OR UPDATE ON friends
@@ -275,33 +312,69 @@ CREATE TRIGGER trigger_handle_friend_request
 CREATE OR REPLACE FUNCTION handle_game_invitation()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF TG_OP = 'INSERT' THEN
-    -- Create notification for game invitation
-    INSERT INTO notifications (user_id, type, title, message, data, requires_action)
-    VALUES (
-      NEW.invitee_id,
-      'game_invite',
-      'Game Invitation',
-      'You have been invited to join a game',
-      jsonb_build_object('game_id', NEW.game_id, 'inviter_id', NEW.inviter_id, 'invitation_id', NEW.id),
-      true
-    );
-  ELSIF TG_OP = 'UPDATE' AND NEW.status = 'accepted' AND OLD.status = 'pending' THEN
-    -- Game invitation accepted, notify the inviter
-    INSERT INTO notifications (user_id, type, title, message, data)
-    VALUES (
-      NEW.inviter_id,
-      'game_invite',
-      'Game Invitation Accepted',
-      'Your game invitation was accepted!',
-      jsonb_build_object('game_id', NEW.game_id, 'invitee_id', NEW.invitee_id)
-    );
-  END IF;
-  RETURN NEW;
+    -- Create notification when game invitation is sent
+    IF TG_OP = 'INSERT' AND NEW.status = 'pending' THEN
+        INSERT INTO notifications (
+            user_id,
+            type,
+            title,
+            message,
+            data,
+            requires_action
+        ) VALUES (
+            NEW.invitee_id,
+            'game_invite',
+            'Game Invitation',
+            'You have been invited to join a game',
+            jsonb_build_object(
+                'invitation_id', NEW.id,
+                'game_id', NEW.game_id,
+                'inviter_id', NEW.inviter_id,
+                'inviter_username', (SELECT username FROM user_profiles WHERE id = NEW.inviter_id)
+            ),
+            true
+        );
+    END IF;
+    
+    -- Handle game invitation acceptance
+    IF TG_OP = 'UPDATE' AND OLD.status = 'pending' AND NEW.status = 'accepted' THEN
+        -- Add player to the game
+        UPDATE games 
+        SET players = array_append(players, (SELECT email FROM auth.users WHERE id = NEW.invitee_id))
+        WHERE id = NEW.game_id;
+        
+        -- Create notification for the inviter
+        INSERT INTO notifications (
+            user_id,
+            type,
+            title,
+            message,
+            data
+        ) VALUES (
+            NEW.inviter_id,
+            'game_invite',
+            'Game Invitation Accepted',
+            'Your game invitation was accepted!',
+            jsonb_build_object(
+                'game_id', NEW.game_id,
+                'invitee_id', NEW.invitee_id,
+                'invitee_username', (SELECT username FROM user_profiles WHERE id = NEW.invitee_id)
+            )
+        );
+        
+        -- Mark the original notification as read
+        UPDATE notifications 
+        SET is_read = true 
+        WHERE user_id = NEW.invitee_id 
+        AND type = 'game_invite' 
+        AND data->>'invitation_id' = NEW.id::text;
+    END IF;
+    
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger for game invitations (drop if exists first)
+-- Create trigger for game invitation handling
 DROP TRIGGER IF EXISTS trigger_handle_game_invitation ON game_invitations;
 CREATE TRIGGER trigger_handle_game_invitation
   AFTER INSERT OR UPDATE ON game_invitations

@@ -86,7 +86,7 @@ export function useFriends() {
         .select(
           `
           *,
-          friend_profile:user_profiles!friends_friend_id_fkey(*)
+          friend_profile:user_profiles(*)
         `
         )
         .eq('user_id', user.id)
@@ -108,7 +108,7 @@ export function useFriends() {
         .select(
           `
           *,
-          friend_profile:user_profiles!friends_user_id_fkey(*)
+          friend_profile:user_profiles(*)
         `
         )
         .eq('friend_id', user.id)

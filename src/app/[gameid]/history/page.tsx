@@ -34,7 +34,7 @@ export default function GameHistoryPage() {
             text={error || 'Game not found'}
             className="w-full max-w-md mb-4"
           />
-          <Link href="/" passHref legacyBehavior>
+          <Link href="/">
             <Button label="Go Home" className="mt-4" />
           </Link>
         </div>
@@ -101,7 +101,7 @@ export default function GameHistoryPage() {
               className="p-button-outlined"
               tooltip="Go Back"
             />
-            <Link href={`/${gameId}/dashboard`} passHref legacyBehavior>
+            <Link href={`/${gameId}/dashboard`}>
               <Button icon="pi pi-gamepad" className="p-button-outlined" tooltip="Back to Game" />
             </Link>
           </div>

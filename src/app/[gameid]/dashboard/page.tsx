@@ -8,6 +8,7 @@ import { DrawCardModal } from '../../../components/draw-card-modal';
 import { FriendsList } from '../../../components/friends-list';
 import { NotificationsPanel } from '../../../components/notifications-panel';
 import { GameTips } from '../../../components/game-tips';
+import { ShareGameModal } from '../../../components/share-game-modal';
 import { useGame } from '../../../hooks/useGame';
 import { Button } from 'primereact/button';
 import { ProgressSpinner } from 'primereact/progressspinner';
@@ -22,6 +23,7 @@ export default function GameDashboardPage() {
   const [cardText, setCardText] = useState('');
   const [showFriends, setShowFriends] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const { game, isLoading, error, decrementDrinks, nextTurn, updateGame, addHistoryEntry } =
     useGame(gameId);
@@ -39,7 +41,7 @@ export default function GameDashboardPage() {
     return (
       <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-b from-orange-900 to-red-700 text-white">
         <Message severity="error" text={error || 'Game not found'} className="w-full max-w-md" />
-        <Link href="/" passHref legacyBehavior>
+        <Link href="/">
           <Button label="Go Home" className="mt-4" />
         </Link>
       </main>
@@ -81,7 +83,7 @@ export default function GameDashboardPage() {
     <main className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-b from-orange-900 to-red-700 text-white">
       {/* Header with navigation and social buttons */}
       <div className="absolute top-4 left-4 right-4 flex items-center justify-between">
-        <Link href="/" passHref legacyBehavior>
+        <Link href="/">
           <Button icon="pi pi-arrow-left" className="p-button-text p-button-rounded" />
         </Link>
 
@@ -100,7 +102,13 @@ export default function GameDashboardPage() {
           >
             {/* Notification badge would go here */}
           </Button>
-          <Link href={`/${gameId}/history`} passHref legacyBehavior>
+          <Button
+            icon="pi pi-share-alt"
+            className="p-button-text p-button-rounded"
+            onClick={() => setShowShareModal(true)}
+            tooltip="Share Game"
+          />
+          <Link href={`/${gameId}/history`}>
             <Button icon="pi pi-history" className="p-button-text p-button-rounded" />
           </Link>
         </div>
@@ -157,6 +165,13 @@ export default function GameDashboardPage() {
       <FriendsList visible={showFriends} onHide={() => setShowFriends(false)} />
 
       <NotificationsPanel visible={showNotifications} onHide={() => setShowNotifications(false)} />
+
+      <ShareGameModal
+        visible={showShareModal}
+        onHide={() => setShowShareModal(false)}
+        gameId={gameId}
+        gameType={game.game_type}
+      />
 
       {/* Game Tips */}
       <GameTips gameType={game.game_type} />

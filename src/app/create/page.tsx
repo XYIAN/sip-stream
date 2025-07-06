@@ -64,19 +64,32 @@ export default function CreatePage() {
 
     try {
       console.log('CreatePage: Creating game...');
+      console.log('CreatePage: selectedGameType:', selectedGameType);
 
-      const { data: game, error } = await supabase
-        .from('games')
-        .insert({
-          game_type: selectedGameType.value,
-          players: [user.email || 'Anonymous'],
-          current_drinks: 0,
-          current_player_index: 0,
-          is_active: true,
-          created_by: user.id,
-        })
-        .select()
-        .single();
+      // Handle both object and string values for selectedGameType
+      let gameTypeValue;
+      if (typeof selectedGameType === 'string') {
+        gameTypeValue = selectedGameType;
+      } else if (selectedGameType?.value) {
+        gameTypeValue = selectedGameType.value;
+      } else {
+        throw new Error('Invalid game type selected');
+      }
+
+      console.log('CreatePage: game_type value:', gameTypeValue);
+
+      const gameData = {
+        game_type: gameTypeValue,
+        players: [user.email || 'Anonymous'],
+        current_drinks: 0,
+        current_player_index: 0,
+        is_active: true,
+        created_by: user.id,
+      };
+
+      console.log('CreatePage: Inserting game data:', gameData);
+
+      const { data: game, error } = await supabase.from('games').insert(gameData).select().single();
 
       if (error) {
         console.error('CreatePage: Error creating game:', error);
@@ -150,6 +163,7 @@ export default function CreatePage() {
                 onChange={e => setSelectedGameType(e.value)}
                 options={gameTypes}
                 optionLabel="label"
+                optionValue="value"
                 placeholder="Select game type"
                 className="w-full p-button-lg"
               />

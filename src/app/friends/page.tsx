@@ -27,7 +27,7 @@ export default function FriendsPage() {
               <p className="text-orange-200">Manage your friends and connections</p>
             </div>
           </div>
-          <Link href="/" passHref legacyBehavior>
+          <Link href="/">
             <Button icon="pi pi-arrow-left" className="p-button-outlined" tooltip="Back to Home" />
           </Link>
         </div>
